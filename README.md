@@ -1,8 +1,8 @@
-## PlayFair3
+## PlayFair
 
-**PlayFair3 is a Raffle smart contract build with solidity**
+**PlayFair is a Raffle smart contract build with solidity**
 
-PlayFair3 consists of:
+PlayFair consists of:
 
 - **Multiple Players**: Allows multiple players to join the contract.
 - **VRF(Varifiable Random Function)**: This is one of chaimlink features that generate a random number(s) that can be verified.
