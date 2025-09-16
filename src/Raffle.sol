@@ -17,23 +17,18 @@ import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFCo
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 
 /**
-@title A Raffle contract
-@author Abdulkadir Bala Usman (X: @Abdullkhadiir)
-@notice This contract is for creating a sample of web3 Raffle
-@dev Implements Chainlink VRFv2.5
+ * @title A Raffle contract
+ * @author Abdulkadir Bala Usman (X: @Abdullkhadiir)
+ * @notice This contract is for creating a sample of web3 Raffle
+ * @dev Implements Chainlink VRFv2.5
  */
-
 contract Raffle is VRFConsumerBaseV2Plus {
     //Errors
     error Raffle__NotEnoughEth();
     error Raffle__ElaspedTime();
     error Raffle__TransferFailed();
     error Raffle__RaffleNotOpen();
-    error Raffle__UpkeepNotNeeded(
-        uint256 balance,
-        uint256 playersLength,
-        uint256 raffleState
-    );
+    error Raffle__UpkeepNotNeeded(uint256 balance, uint256 playersLength, uint256 raffleState);
 
     //type declaration
     enum RaffleState {
@@ -60,6 +55,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
     //in this case player joining the raffle
 
     event WinnerPicked(address indexed winner);
+    event RequestedRaffleWinner(uint256 indexed winnerIndex);
 
     //constructor
     //receive(if exist)
@@ -85,10 +81,12 @@ contract Raffle is VRFConsumerBaseV2Plus {
         s_lastTimeStamp = block.timestamp;
         s_raffleState = RaffleState.OPEN;
     }
+
     receive() external payable {
         //incase user mistakenly call a function that doesn't exist with data
         enterRaffle();
     }
+
     fallback() external payable {
         //incase user mistakenly call a function that doesn't exist without data
         enterRaffle();
@@ -109,37 +107,35 @@ contract Raffle is VRFConsumerBaseV2Plus {
         emit RaffleEntered(msg.sender);
     }
     /**
-    @dev this is the function that the chainlink node will call to see if the
-    * lottery is ready to have a winner picked.
-    * the following should be true in order for upkeepNeeded to be true:
-    * 1. The time interval has passed between raffle
-    * 2. The lottery is open
-    * 3. The contract has Eth
-    * 4. Implicitly, your subscription has Link
-    * @param - ignored
-    * @return upkeepNeeded - true if its time to restart the lottery
+     * @dev this is the function that the chainlink node will call to see if the
+     * lottery is ready to have a winner picked.
+     * the following should be true in order for upkeepNeeded to be true:
+     * 1. The time interval has passed between raffle
+     * 2. The lottery is open
+     * 3. The contract has Eth
+     * 4. Implicitly, your subscription has Link
+     * @param - ignored
+     * @return upkeepNeeded - true if its time to restart the lottery
      */
 
-    function checkUpkeep(
-        bytes memory /*checkdata */
-    ) public view returns (bool upkeepNeeded, bytes memory /**performData */) {
-        bool timeHasPassed = ((block.timestamp - s_lastTimeStamp) >=
-            i_interval);
+    function checkUpkeep(bytes memory /*checkdata */ ) public view returns (bool upkeepNeeded, bytes memory) 
+    /**
+     * performData
+     */
+    {
+        bool timeHasPassed = ((block.timestamp - s_lastTimeStamp) >= i_interval);
         bool isOpen = s_raffleState == RaffleState.OPEN;
         bool hasBalance = address(this).balance > 0;
         bool hasPlayers = s_players.length > 0;
         upkeepNeeded = timeHasPassed && isOpen && hasBalance && hasPlayers;
         return (upkeepNeeded, "");
     }
-    function performUpkeep(bytes calldata /*performData*/) external {
+
+    function performUpkeep(bytes calldata /*performData*/ ) external {
         //check if enough time has passed
-        (bool upkeepNeeded, ) = checkUpkeep("");
+        (bool upkeepNeeded,) = checkUpkeep("");
         if (!upkeepNeeded) {
-            revert Raffle__UpkeepNotNeeded(
-                address(this).balance,
-                s_players.length,
-                uint256(s_raffleState)
-            );
+            revert Raffle__UpkeepNotNeeded(address(this).balance, s_players.length, uint256(s_raffleState));
         }
         // if ((block.timestamp - s_lastTimeStamp) > i_interval) {
         //     revert Raffle__ElaspedTime();
@@ -151,25 +147,20 @@ contract Raffle is VRFConsumerBaseV2Plus {
 
         //s_vrfcoordinator is from the inherited contract(VRFConsumerBaseV2Plus)
 
-        VRFV2PlusClient.RandomWordsRequest memory request = VRFV2PlusClient
-            .RandomWordsRequest({
-                keyHash: i_keyHash,
-                subId: i_subscriptionId,
-                requestConfirmations: REQUEST_CONFIRMATION,
-                callbackGasLimit: i_callbackGasLimit,
-                numWords: NUM_WORD,
-                // Set nativePayment to true to pay for VRF requests with Sepolia ETH instead of LINK
-                extraArgs: VRFV2PlusClient._argsToBytes(
-                    VRFV2PlusClient.ExtraArgsV1({nativePayment: false})
-                )
-            });
+        VRFV2PlusClient.RandomWordsRequest memory request = VRFV2PlusClient.RandomWordsRequest({
+            keyHash: i_keyHash,
+            subId: i_subscriptionId,
+            requestConfirmations: REQUEST_CONFIRMATION,
+            callbackGasLimit: i_callbackGasLimit,
+            numWords: NUM_WORD,
+            // Set nativePayment to true to pay for VRF requests with Sepolia ETH instead of LINK
+            extraArgs: VRFV2PlusClient._argsToBytes(VRFV2PlusClient.ExtraArgsV1({nativePayment: false}))
+        });
         uint256 requestId = s_vrfCoordinator.requestRandomWords(request);
+        emit RequestedRaffleWinner(requestId);
     }
 
-    function fulfillRandomWords(
-        uint256 requestId,
-        uint256[] calldata randomWords
-    ) internal override {
+    function fulfillRandomWords(uint256, /*requestId*/ uint256[] calldata randomWords) internal override {
         //this function is called in an external function from the inherited contract
         uint256 indexOfWinner = randomWords[0] % s_players.length; //winner index
         address payable recentWinner = s_players[indexOfWinner];
@@ -181,7 +172,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
         s_lastTimeStamp = block.timestamp;
         emit WinnerPicked(s_recentWinner);
 
-        (bool success, ) = recentWinner.call{value: address(this).balance}(""); //paying the recent winner
+        (bool success,) = recentWinner.call{value: address(this).balance}(""); //paying the recent winner
 
         if (!success) {
             revert Raffle__TransferFailed();
@@ -197,6 +188,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
     function getPlayer(uint256 index) external view returns (address) {
         return s_players[index];
     }
+
     function getRaffleState() external view returns (RaffleState) {
         return s_raffleState;
     }

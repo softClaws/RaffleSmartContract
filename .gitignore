@@ -9,6 +9,6 @@ out/
 
 # Docs
 docs/
-
+coverage.txt
 # Dotenv file
 .env
