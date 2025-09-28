@@ -30,6 +30,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
     error Raffle__RaffleNotOpen();
     error Raffle__UpkeepNotNeeded(uint256 balance, uint256 playersLength, uint256 raffleState);
 
+
     //type declaration
     enum RaffleState {
         OPEN,
@@ -55,7 +56,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
     //in this case player joining the raffle
 
     event WinnerPicked(address indexed winner);
-    event RequestedRaffleWinner(uint256 indexed winnerIndex);
+    event RequestRaffleWinner(uint256 indexed winnerIndex);
 
     //constructor
     //receive(if exist)
@@ -157,7 +158,7 @@ contract Raffle is VRFConsumerBaseV2Plus {
             extraArgs: VRFV2PlusClient._argsToBytes(VRFV2PlusClient.ExtraArgsV1({nativePayment: false}))
         });
         uint256 requestId = s_vrfCoordinator.requestRandomWords(request);
-        emit RequestedRaffleWinner(requestId);
+        emit RequestRaffleWinner(requestId);
     }
 
     function fulfillRandomWords(uint256, /*requestId*/ uint256[] calldata randomWords) internal override {
